@@ -75,7 +75,7 @@
 <body class="flex flex-col min-h-full font-sans text-slate-800 antialiased select-none" 
       x-data="cbtExam({
           siswaUjianId: {{ $siswaUjian->id }},
-          totalSoal: {{ $ujian->soal->count() }},
+          totalSoal: {{ $soalTerurut->count() }},
           initialAnswers: {{ json_encode($jawabanTersimpan) }},
           sisaDetik: {{ $sisaDetik }},
           submitUrl: '{{ route('siswa.ujian.submit', $ujian->id) }}',
@@ -170,7 +170,7 @@
     <main class="grow max-w-4xl w-full mx-auto p-4 sm:p-6 pb-28">
 
         @php
-            $soalArray = $ujian->soal->values();
+            $soalArray = $soalTerurut->values();
         @endphp
 
         @foreach ($soalArray as $index => $soal)

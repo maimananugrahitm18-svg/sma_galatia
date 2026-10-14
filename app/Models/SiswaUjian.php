@@ -19,13 +19,15 @@ class SiswaUjian extends Model
         'sisa_waktu_detik',
         'status',
         'total_nilai',
+        'urutan_soal_ids', // JSON array ID soal yang sudah diacak
     ];
 
     protected $casts = [
-        'waktu_mulai' => 'datetime',
-        'waktu_selesai' => 'datetime',
+        'waktu_mulai'      => 'datetime',
+        'waktu_selesai'    => 'datetime',
         'sisa_waktu_detik' => 'integer',
-        'total_nilai' => 'decimal:2',
+        'total_nilai'      => 'decimal:2',
+        'urutan_soal_ids'  => 'array',   // Auto encode/decode JSON
     ];
 
     public function ujian()

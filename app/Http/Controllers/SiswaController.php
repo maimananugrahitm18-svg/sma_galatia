@@ -100,15 +100,47 @@ class SiswaController extends Controller
                 'siswa_id' => $siswa->id,
             ],
             [
-                'waktu_mulai' => now(),
-                'sisa_waktu_detik' => $ujian->durasi_menit * 60,
-                'status' => 'sedang_mengerjakan',
+                'waktu_mulai'     => now(),
+                'sisa_waktu_detik'=> $ujian->durasi_menit * 60,
+                'status'          => 'sedang_mengerjakan',
             ]
         );
 
         if ($siswaUjian->status === 'selesai') {
             return redirect()->route('siswa.ujian.hasil', $ujian->id)->with('info', 'Anda telah menyelesaikan ujian ini.');
         }
+
+        // ── LOGIKA PENGACAKAN SOAL ──────────────────────────────────────────
+        // Jika urutan belum pernah disimpan (sesi baru), buat urutan sekarang
+        if (empty($siswaUjian->urutan_soal_ids)) {
+            $semuaIdSoal = $ujian->soal->sortBy('urutan')->pluck('id')->toArray();
+
+            if ($ujian->acak_soal) {
+                shuffle($semuaIdSoal); // Acak urutan soal
+            }
+
+            $siswaUjian->update(['urutan_soal_ids' => $semuaIdSoal]);
+        }
+
+        // Susun soal sesuai urutan yang tersimpan (konsisten tiap refresh)
+        $urutanIds = $siswaUjian->urutan_soal_ids;
+        $soalTerurut = collect($urutanIds)->map(function ($soalId) use ($ujian) {
+            return $ujian->soal->firstWhere('id', $soalId);
+        })->filter(); // buang null jika ada soal yang sudah dihapus
+
+        // Acak opsi jawaban per soal jika diaktifkan (menggunakan seed per siswa
+        // agar opsi urutan konsisten walaupun di-refresh)
+        if ($ujian->acak_opsi) {
+            $soalTerurut = $soalTerurut->map(function ($soal) use ($siswaUjian) {
+                // Seed deterministik: siswa_ujian_id + soal_id agar konsisten
+                $seed = $siswaUjian->id * 1000 + $soal->id;
+                mt_srand($seed);
+                $opsiAcak = $soal->opsi->shuffle();
+                $soal->setRelation('opsi', $opsiAcak);
+                return $soal;
+            });
+        }
+        // ────────────────────────────────────────────────────────────────────
 
         // Ambil jawaban yang sudah pernah disimpan sebelumnya
         $jawabanTersimpan = SiswaJawaban::where('siswa_ujian_id', $siswaUjian->id)
@@ -125,12 +157,14 @@ class SiswaController extends Controller
         }
 
         return view('siswa.ujian.cbt-mobile', [
-            'ujian' => $ujian,
-            'siswaUjian' => $siswaUjian,
-            'jawabanTersimpan' => $jawabanTersimpan,
-            'sisaDetik' => $sisaDetikAktual,
+            'ujian'           => $ujian,
+            'siswaUjian'      => $siswaUjian,
+            'soalTerurut'     => $soalTerurut, // soal sudah diacak & konsisten
+            'jawabanTersimpan'=> $jawabanTersimpan,
+            'sisaDetik'       => $sisaDetikAktual,
         ]);
     }
+
 
     /**
      * Auto-save jawaban via AJAX dari smartphone tanpa refresh halaman
